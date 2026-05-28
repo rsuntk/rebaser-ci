@@ -1,0 +1,50 @@
+name: Rebase OEM Kernel source to ACK
+on:
+  workflow_dispatch:
+    inputs:
+      REPO_URL:
+        description: 'Kernel repository URL'
+        default: 'https://github.com/rsuntk/android_kernel_asus_sdm660-4.19.git'
+        required: true
+      BRANCH:
+        description: 'Kernel branch to Rebase'
+        default: 'master'
+        required: true
+      ACK_BRANCH:
+        description: 'Android Common Kernel branch'
+        default: 'deprecated/android-4.19-stable'
+        required: true
+      TARGET_URL:
+        description: 'Target URL to push'
+        default: 'git@github.com:rsuntk/test_kernel.git'
+        required: true
+
+jobs:
+  rebase:
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup SSH Keys
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Setup environment
+        run: |
+          if [[ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]]; then
+            echo "SSH Key is required in order to push this changes!"
+            exit 1
+          fi
+          sudo apt install git -y
+          git config --global user.name "rsuntk"
+          git config --global user.email "rissu.ntk@gmail.com"
+
+      - name: Start rebase
+        run: |
+          curl https://raw.githubusercontent.com/rsuntk/android-kernel-rebaser/refs/heads/main/kernel-rebase.sh > rebase.sh; chmod +x rebase.sh
+          bash ./rebase.sh "${{ inputs.REPO_URL }} -b ${{ inputs.BRANCH }}" "${{ inputs.ACK_BRANCH }}"
+          cd kernel; sed -i 's/\*\.bin/# *.bin/g' .gitignore; git add .; git commit -sm ".gitignore: Do not ignore *.bin files"; git remote set-url origin ${{ inputs.TARGET_URL }}
+          git push -u origin ${{ inputs.ACK_BRANCH }}
