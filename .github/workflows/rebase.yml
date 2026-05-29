@@ -21,7 +21,7 @@ on:
 
 jobs:
   rebase:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
@@ -39,14 +39,29 @@ jobs:
             exit 1
           fi
           sudo apt install git -y
-          git config --global user.name "rsuntk"
-          git config --global user.email "rissu.ntk@gmail.com"
+          git config --global user.name "rsuntk-worker-ci"
+          git config --global user.email "noreply@example.com"
+          git config --global core.preloadIndex true
+          git config --global core.fscache true
 
       - name: Start rebase
         run: |
           curl https://raw.githubusercontent.com/rsuntk/android-kernel-rebaser/refs/heads/main/kernel-rebase.sh > rebase.sh; chmod +x rebase.sh
           bash ./rebase.sh "${{ inputs.REPO_URL }} -b ${{ inputs.BRANCH }}" "${{ inputs.ACK_BRANCH }}"
-          cd kernel; sed -i 's/\*\.bin/# *.bin/g' .gitignore; git add .gitignore; git commit -sm ".gitignore: Do not ignore *.bin files"; git remote set-url origin ${{ inputs.TARGET_URL }}
-          git add .; git commit -sm "firmware: Import missing required firmware files"
+
+          cd kernel
+
+          # Set Remote
+          git remote set-url origin ${{ inputs.TARGET_URL }}
+
+          # '*.bin' -> '# *.bin'
+          sed -i 's/\*\.bin/# *.bin/g' .gitignore
+          git add .gitignore
+          git commit -sm ".gitignore: Do not ignore *.bin files"
+
+          # Commit firmware
+          git add .
+          git commit -sm "firmware: Import missing required firmware files" || echo "No extra firmware files to commit"
+
+          # Push the kernel source
           git push -u origin ${{ inputs.ACK_BRANCH }}
-        timeout-minutes: 40
