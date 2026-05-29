@@ -22,6 +22,7 @@ on:
 jobs:
   rebase:
     runs-on: ubuntu-slim
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
         with:
@@ -46,5 +47,6 @@ jobs:
         run: |
           curl https://raw.githubusercontent.com/rsuntk/android-kernel-rebaser/refs/heads/main/kernel-rebase.sh > rebase.sh; chmod +x rebase.sh
           bash ./rebase.sh "${{ inputs.REPO_URL }} -b ${{ inputs.BRANCH }}" "${{ inputs.ACK_BRANCH }}"
-          cd kernel; sed -i 's/\*\.bin/# *.bin/g' .gitignore; git add .; git commit -sm ".gitignore: Do not ignore *.bin files"; git remote set-url origin ${{ inputs.TARGET_URL }}
+          cd kernel; sed -i 's/\*\.bin/# *.bin/g' .gitignore; git add .gitignore; git commit -sm ".gitignore: Do not ignore *.bin files"; git remote set-url origin ${{ inputs.TARGET_URL }}
+          git add .; git commit -sm "firmware: Import missing required firmware files"
           git push -u origin ${{ inputs.ACK_BRANCH }}
