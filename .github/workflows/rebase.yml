@@ -18,6 +18,11 @@ on:
         description: 'Target URL to push'
         default: 'git@github.com:rsuntk/test_kernel.git'
         required: true
+      INCREMENTAL_PUSH:
+        description: 'Push commits in small batches'
+        type: boolean
+        default: false
+        required: true
 
 jobs:
   rebase:
@@ -64,4 +69,30 @@ jobs:
           git commit -sm "firmware: Import missing required firmware files" || echo "No extra firmware files to commit"
 
           # Push the kernel source
-          git push -u origin ${{ inputs.ACK_BRANCH }}
+          if [[ "${{ inputs.INCREMENTAL_PUSH }}" = "true" ]]; then
+            BRANCH_NAME="${{ inputs.ACK_BRANCH }}"
+            REMOTE_NAME="origin"
+            STEP_SIZE=500000
+
+            step_commits=$(git log --oneline --reverse refs/heads/$BRANCH_NAME | awk "NR % $STEP_SIZE == 0" | awk '{print $1}')
+
+            echo "Starting incremental push for branch '$BRANCH_NAME' to remote '$REMOTE_NAME' with step size of $STEP_SIZE commits..."
+
+            for commit in $step_commits; do
+              echo "Pushing commit $commit..."
+              git push $REMOTE_NAME +$commit:refs/heads/$BRANCH_NAME
+
+              # Check if the last push succeeded
+              if [[ $? -ne 0 ]]; then
+                echo "Error pushing commit $commit. Exiting."
+                exit 1
+              fi
+            done
+
+            echo "Performing final mirror push..."
+            git push $REMOTE_NAME --mirror
+
+            echo "Incremental push complete!"
+          else
+            git push -u origin ${{ inputs.ACK_BRANCH }}
+          fi
