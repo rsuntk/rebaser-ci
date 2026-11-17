@@ -45,7 +45,7 @@ jobs:
           fi
           sudo apt install git -y
           git config --global user.name "rsuntk-ci-worker"
-          git config --global user.email "rsuntk-ci-worker@yukiprjkt.my.id"
+          git config --global user.email "noreply@example.com"
           git config --global core.preloadIndex true
           git config --global core.fscache true
 
